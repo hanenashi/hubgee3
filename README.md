@@ -1,4 +1,5 @@
-# Hubgee3 🚀🐢
+
+# ![Hubgee3 Icon](./icon.svg) Hubgee3 🚀🐢
 
 **The Modular Copy/Paste/Diff Bridge for AI and GitHub.**
 
