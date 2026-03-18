@@ -5,9 +5,10 @@ window.Hubgee.AI = (function() {
     const UI = window.Hubgee.UI;
     const Utils = window.Hubgee.Utils;
 
-    function isBlockGenerating(block, isGPT) {
+    function isBlockGenerating(block, isGPT, isLastBlock) {
         const now = Date.now();
-        const currentLen = block.innerText.length;
+        // Use textContent instead of innerText to avoid triggering a layout reflow just to check length
+        const currentLen = (block.textContent || '').length;
 
         if (block._hubgeeLastLen !== currentLen) {
             block._hubgeeLastLen = currentLen;
@@ -15,8 +16,6 @@ window.Hubgee.AI = (function() {
         }
 
         const recentlyChanged = (now - (block._hubgeeLastChange || 0)) < 1500;
-        const allPres = document.querySelectorAll('pre');
-        const isLastBlock = allPres[allPres.length - 1] === block;
 
         if (isGPT) {
             const msgContainer = block.closest('[data-message-author-role="assistant"], article, [role="article"]') || document;
@@ -24,10 +23,17 @@ window.Hubgee.AI = (function() {
             const isStreaming = !!block.closest('.result-streaming');
 
             let hasVisibleStopBtn = false;
-            const stopBtns = msgContainer.querySelectorAll('button[aria-label*="stop" i]');
-            stopBtns.forEach(btn => {
-                if (Utils.isNodeVisible(btn)) hasVisibleStopBtn = true;
-            });
+            
+            // 🔥 PERFORMANCE FIX: Only run expensive layout-thrashing visibility checks on the final block
+            if (isLastBlock) {
+                const stopBtns = msgContainer.querySelectorAll('button[aria-label*="stop" i]');
+                for (const btn of stopBtns) {
+                    if (Utils.isNodeVisible(btn)) {
+                        hasVisibleStopBtn = true;
+                        break;
+                    }
+                }
+            }
 
             const wrapper = block.parentElement && block.parentElement.parentElement;
             const hasNativeCopy = !!(wrapper && wrapper.querySelector('button[aria-label="Copy" i]'));
@@ -35,10 +41,15 @@ window.Hubgee.AI = (function() {
             return recentlyChanged || hasSpinner || isStreaming || (hasVisibleStopBtn && isLastBlock && !hasNativeCopy);
         } else {
             let hasVisibleStopBtn = false;
-            const stopBtns = document.querySelectorAll('button[aria-label*="stop" i], button[aria-label*="Stop stream" i]');
-            stopBtns.forEach(btn => {
-                if (Utils.isNodeVisible(btn)) hasVisibleStopBtn = true;
-            });
+            if (isLastBlock) {
+                const stopBtns = document.querySelectorAll('button[aria-label*="stop" i], button[aria-label*="Stop stream" i]');
+                for (const btn of stopBtns) {
+                    if (Utils.isNodeVisible(btn)) {
+                        hasVisibleStopBtn = true;
+                        break;
+                    }
+                }
+            }
 
             return recentlyChanged || (hasVisibleStopBtn && isLastBlock);
         }
@@ -48,10 +59,12 @@ window.Hubgee.AI = (function() {
         setInterval(function () {
             if (!window.location.pathname.startsWith('/app/')) return;
 
-            document.querySelectorAll('pre').forEach(function (block, index) {
+            const allPres = document.querySelectorAll('pre');
+            allPres.forEach(function (block, index) {
                 const blockNum = index + 1;
                 const defaultLabel = `📦 Copy Block #${blockNum}`;
-                const isGenerating = isBlockGenerating(block, false);
+                const isLastBlock = index === allPres.length - 1;
+                const isGenerating = isBlockGenerating(block, false, isLastBlock);
 
                 if (!block.classList.contains('hubgee3-injected')) {
                     block.classList.add('hubgee3-injected');
@@ -107,12 +120,14 @@ window.Hubgee.AI = (function() {
 
     function initChatGPT() {
         setInterval(function () {
-            document.querySelectorAll('pre').forEach(function (pre, index) {
+            const allPres = document.querySelectorAll('pre');
+            
+            // First loop: Ensure all blocks have buttons
+            allPres.forEach(function (pre, index) {
                 if (pre.classList.contains('hubgee3-injected')) return;
-
                 if (!pre.querySelector('#code-block-viewer') && !pre.querySelector('.cm-editor') && !pre.querySelector('.cm-content')) return;
+                
                 pre.classList.add('hubgee3-injected');
-
                 const blockNum = index + 1;
                 const defaultLabel = `📦 Copy Block #${blockNum}`;
                 const btn = UI.createSourceButton(defaultLabel);
@@ -142,9 +157,13 @@ window.Hubgee.AI = (function() {
                 if (pre.parentNode) pre.parentNode.insertBefore(btn, pre);
             });
 
-            document.querySelectorAll('pre.hubgee3-injected').forEach(function (pre, index) {
+            // Second loop: Dynamic UI Updates
+            allPres.forEach(function (pre, index) {
+                if (!pre.classList.contains('hubgee3-injected')) return;
+                
                 const btn = pre._hubgeeBtn;
-                const isGenerating = isBlockGenerating(pre, true);
+                const isLastBlock = index === allPres.length - 1;
+                const isGenerating = isBlockGenerating(pre, true, isLastBlock);
                 const defaultLabel = `📦 Copy Block #${index + 1}`;
 
                 if (btn && btn.dataset.hubgeePressArmed !== '1' && !btn.classList.contains('hubgee3-working') && !btn.textContent.includes('✅')) {
@@ -170,3 +189,4 @@ window.Hubgee.AI = (function() {
         }
     };
 })();
+                    
