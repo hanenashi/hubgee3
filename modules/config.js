@@ -5,7 +5,7 @@ window.Hubgee.Config = (function() {
 
     const KEYS = {
         payload: 'hubgee3_payload',
-        baseCode: 'hubgee3_base_code', // For our future diff engine
+        baseCode: 'hubgee3_base_code',
         btnPos: 'hubgee3_btn_pos',
         mode: 'hubgee3_mode',
         debug: 'hubgee3_debug'
@@ -24,17 +24,22 @@ window.Hubgee.Config = (function() {
         catch (err) { Log.error('Failed to save state:', key); return false; }
     }
 
+    // --- UI Helpers ---
+    function modeLabel(mode) {
+        if (mode === 'download') return 'Download';
+        if (mode === 'sync') return 'Sync';
+        return 'Paste';
+    }
+
     // --- Settings Menu Builder ---
     function buildMenu() {
         if (typeof GM_registerMenuCommand === 'undefined') return;
 
         const isDebugOn = get(KEYS.debug, false);
-        const currentMode = get(KEYS.mode, 'paste');
 
         // 1. Toggle Debug Mode
         GM_registerMenuCommand(`🐛 Debug Mode: ${isDebugOn ? 'ON' : 'OFF'}`, () => {
             set(KEYS.debug, !isDebugOn);
-            // Quick reload to apply changes globally
             window.location.reload(); 
         });
 
@@ -59,6 +64,7 @@ window.Hubgee.Config = (function() {
         
         get: get,
         set: set,
+        modeLabel: modeLabel, // <-- THE MISSING LINK!
         
         isDebug: () => get(KEYS.debug, false),
         
