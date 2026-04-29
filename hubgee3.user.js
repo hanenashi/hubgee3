@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Hubgee3 - The Bridge (DEV)
 // @namespace    https://github.com/hanenashi
-// @version      3.0.1-dev
+// @version      3.0.2-dev
 // @description  Modular Copy/Paste/Diff Bridge for AI and GitHub (Bleeding Edge)
 // @author       hanenashi
 // @match        *://*.gemini.google.com/*
@@ -18,14 +18,14 @@
 // @run-at       document-idle
 //
 // --- THE MODULES (Loading from DEV branch) ---
-// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/logger.js?v=3.0.1-dev
-// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/config.js?v=3.0.1-dev
-// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/utils.js?v=3.0.1-dev
-// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/ui.js?v=3.0.1-dev
-// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/ai-handler.js?v=3.0.1-dev
-// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/git-handler.js?v=3.0.1-dev
-// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/patcher.js?v=3.0.1-dev
-// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/core.js?v=3.0.1-dev
+// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/logger.js?v=3.0.2-dev
+// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/config.js?v=3.0.2-dev
+// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/utils.js?v=3.0.2-dev
+// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/ui.js?v=3.0.2-dev
+// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/ai-handler.js?v=3.0.2-dev
+// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/git-handler.js?v=3.0.2-dev
+// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/patcher.js?v=3.0.2-dev
+// @require      https://raw.githubusercontent.com/hanenashi/hubgee3/dev/modules/core.js?v=3.0.2-dev
 // ==/UserScript==
 
 (function() {
