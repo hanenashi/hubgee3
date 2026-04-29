@@ -5,6 +5,10 @@ window.Hubgee.AI = (function() {
     const UI = window.Hubgee.UI;
     const Utils = window.Hubgee.Utils;
 
+    function isMobileBrowser() {
+        return /Android|Mobile|Kiwi/i.test(navigator.userAgent || '');
+    }
+
     function isBlockGenerating(block, isGPT, isLastBlock) {
         const now = Date.now();
         // Use textContent instead of innerText to avoid triggering a layout reflow just to check length
@@ -23,8 +27,8 @@ window.Hubgee.AI = (function() {
             const isStreaming = !!block.closest('.result-streaming');
 
             let hasVisibleStopBtn = false;
-            
-            // 🔥 PERFORMANCE FIX: Only run expensive layout-thrashing visibility checks on the final block
+
+            // PERFORMANCE FIX: Only run expensive layout-thrashing visibility checks on the final block
             if (isLastBlock) {
                 const stopBtns = msgContainer.querySelectorAll('button[aria-label*="stop" i]');
                 for (const btn of stopBtns) {
@@ -56,6 +60,8 @@ window.Hubgee.AI = (function() {
     }
 
     function initGemini() {
+        if (!location.hostname.includes('gemini.google.com')) return;
+
         setInterval(function () {
             if (!window.location.pathname.startsWith('/app/')) return;
 
@@ -80,7 +86,7 @@ window.Hubgee.AI = (function() {
                         pressState.confirmWorking();
                         await Utils.nextFrame();
 
-                        let rawCode = block.innerText || block.textContent || '';
+                        let rawCode = block.textContent || '';
                         rawCode = rawCode.replace(/\u00a0/g, ' ');
                         const ok = Utils.setPayloadFromText(rawCode);
 
@@ -114,71 +120,90 @@ window.Hubgee.AI = (function() {
 
     function extractChatGPTCodeText(pre) {
         const cmReadonly = pre.querySelector('.cm-content.q9tKkq_readonly') || pre.querySelector('.cm-content');
-        if (cmReadonly) return (cmReadonly.innerText || cmReadonly.textContent || '').replace(/\u00a0/g, ' ');
-        return (pre.innerText || pre.textContent || '').replace(/\u00a0/g, ' ');
+        if (cmReadonly) return (cmReadonly.textContent || '').replace(/\u00a0/g, ' ');
+        return (pre.textContent || '').replace(/\u00a0/g, ' ');
     }
 
     function initChatGPT() {
+        if (!location.hostname.includes('chatgpt.com')) return;
+
+        const mobile = isMobileBrowser();
+        let scanBusy = false;
+        const scanDelay = mobile ? 3000 : 1200;
+
         setInterval(function () {
-            const allPres = document.querySelectorAll('pre');
-            
-            // First loop: Ensure all blocks have buttons
-            allPres.forEach(function (pre, index) {
-                if (pre.classList.contains('hubgee3-injected')) return;
-                if (!pre.querySelector('#code-block-viewer') && !pre.querySelector('.cm-editor') && !pre.querySelector('.cm-content')) return;
-                
-                pre.classList.add('hubgee3-injected');
-                const blockNum = index + 1;
-                const defaultLabel = `📦 Copy Block #${blockNum}`;
-                const btn = UI.createSourceButton(defaultLabel);
-                pre._hubgeeBtn = btn;
+            if (scanBusy) return;
+            scanBusy = true;
 
-                const pressState = UI.armWorkingOnPress(btn, btn);
+            requestAnimationFrame(function () {
+                try {
+                    const allPres = Array.from(document.querySelectorAll('pre'));
 
-                btn.addEventListener('click', async function (e) {
-                    e.preventDefault();
-                    if (btn.classList.contains('hubgee3-generating')) return;
+                    // First loop: Ensure all blocks have buttons
+                    allPres.forEach(function (pre, index) {
+                        if (pre.classList.contains('hubgee3-injected')) return;
+                        if (!pre.querySelector('#code-block-viewer') && !pre.querySelector('.cm-editor') && !pre.querySelector('.cm-content')) return;
 
-                    pressState.confirmWorking();
-                    await Utils.nextFrame();
+                        pre.classList.add('hubgee3-injected');
+                        const blockNum = index + 1;
+                        const defaultLabel = `📦 Copy Block #${blockNum}`;
+                        const btn = UI.createSourceButton(defaultLabel);
+                        pre._hubgeeBtn = btn;
 
-                    const rawCode = extractChatGPTCodeText(pre);
-                    const ok = Utils.setPayloadFromText(rawCode);
+                        const pressState = UI.armWorkingOnPress(btn, btn);
 
-                    pressState.resetWorking(ok ? `✅ Copied #${blockNum}` : defaultLabel);
+                        btn.addEventListener('click', async function (e) {
+                            e.preventDefault();
+                            if (btn.classList.contains('hubgee3-generating')) return;
 
-                    setTimeout(() => {
-                        if (pre._hubgeeBtn && !pre._hubgeeBtn.classList.contains('hubgee3-generating')) {
-                            pre._hubgeeBtn.textContent = defaultLabel;
+                            pressState.confirmWorking();
+                            await Utils.nextFrame();
+
+                            const rawCode = extractChatGPTCodeText(pre);
+                            const ok = Utils.setPayloadFromText(rawCode);
+
+                            pressState.resetWorking(ok ? `✅ Copied #${blockNum}` : defaultLabel);
+
+                            setTimeout(() => {
+                                if (pre._hubgeeBtn && !pre._hubgeeBtn.classList.contains('hubgee3-generating')) {
+                                    pre._hubgeeBtn.textContent = defaultLabel;
+                                }
+                            }, 1600);
+                        });
+
+                        if (pre.parentNode) pre.parentNode.insertBefore(btn, pre);
+                    });
+
+                    // Mobile/Kiwi performance guard:
+                    // Skip dynamic generation polling because it repeatedly touches ChatGPT's heavy DOM.
+                    if (mobile) return;
+
+                    // Second loop: Dynamic UI Updates
+                    allPres.forEach(function (pre, index) {
+                        if (!pre.classList.contains('hubgee3-injected')) return;
+
+                        const btn = pre._hubgeeBtn;
+                        const isLastBlock = index === allPres.length - 1;
+                        const isGenerating = isBlockGenerating(pre, true, isLastBlock);
+                        const defaultLabel = `📦 Copy Block #${index + 1}`;
+
+                        if (btn && btn.dataset.hubgeePressArmed !== '1' && !btn.classList.contains('hubgee3-working') && !btn.textContent.includes('✅')) {
+                            if (isGenerating) {
+                                btn.disabled = true;
+                                btn.classList.add('hubgee3-generating');
+                                btn.textContent = `⏳ Generating #${index + 1}...`;
+                            } else {
+                                btn.disabled = false;
+                                btn.classList.remove('hubgee3-generating');
+                                btn.textContent = defaultLabel;
+                            }
                         }
-                    }, 1600);
-                });
-
-                if (pre.parentNode) pre.parentNode.insertBefore(btn, pre);
-            });
-
-            // Second loop: Dynamic UI Updates
-            allPres.forEach(function (pre, index) {
-                if (!pre.classList.contains('hubgee3-injected')) return;
-                
-                const btn = pre._hubgeeBtn;
-                const isLastBlock = index === allPres.length - 1;
-                const isGenerating = isBlockGenerating(pre, true, isLastBlock);
-                const defaultLabel = `📦 Copy Block #${index + 1}`;
-
-                if (btn && btn.dataset.hubgeePressArmed !== '1' && !btn.classList.contains('hubgee3-working') && !btn.textContent.includes('✅')) {
-                    if (isGenerating) {
-                        btn.disabled = true;
-                        btn.classList.add('hubgee3-generating');
-                        btn.textContent = `⏳ Generating #${index + 1}...`;
-                    } else {
-                        btn.disabled = false;
-                        btn.classList.remove('hubgee3-generating');
-                        btn.textContent = defaultLabel;
-                    }
+                    });
+                } finally {
+                    scanBusy = false;
                 }
             });
-        }, 1200);
+        }, scanDelay);
     }
 
     return {
@@ -189,4 +214,3 @@ window.Hubgee.AI = (function() {
         }
     };
 })();
-                    
